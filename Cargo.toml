@@ -1,0 +1,3 @@
+[workspace]
+members = [ "shared/jamie" , "days/day_01/jamie" ]
+resolver = "2"

@@ -1,0 +1,36 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+    -   id: check-executables-have-shebangs
+    -   id: check-json
+    -   id: pretty-format-json
+    -   id: check-merge-conflict
+    -   id: check-toml
+    -   id: mixed-line-ending
+-   repo: local
+    hooks:
+    -   id: cargo-fmt
+        name: Cargo Format
+        language: system
+        files: ".+\\.rs"
+        entry: cargo fmt
+        pass_filenames: false
+    -   id: cargo-clippy
+        name: Cargo Clippy
+        language: system
+        files: ".+\\.rs"
+        entry: cargo clippy
+        pass_filenames: false
+    -   id: cargo-test
+        name: Cargo Test
+        language: system
+        files: ".+\\.rs"
+        entry: cargo test
+        pass_filenames: false
