@@ -15,7 +15,7 @@ def read_file(file_path: str) -> List[str]:
     #print(lines)
     return lines
 
-def game_checker(input_data: str):
+def blue_dice_check(input_data: str):
     # input_data = "Game 1: 5 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
     game_number = int(re.search(r'\d{1,100}',input_data).group()) 
     print(game_number)
@@ -30,15 +30,15 @@ def game_checker(input_data: str):
         # print(blue_dice_counts)
     # print(blue_dice_counts)
     blue_dice_counts = sorted(blue_dice_counts)
-    # print(blue_dice_counts[len(blue_dice_counts)- 1])
-    if blue_dice_counts[len(blue_dice_counts)- 1] > 14:
-        blue_valid = False
-        # print(blue_valid)
-        print("Too many blue!")
-    else:
-        blue_valid = True
-        # print(blue_valid)
-        print("Blue - valid game")
+    highest_blue_dice = blue_dice_counts[len(blue_dice_counts)- 1]
+    print(highest_blue_dice)
+    return highest_blue_dice
+    
+
+def red_dice_check(input_data: str):
+    # input_data = "Game 1: 5 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
+    game_number = int(re.search(r'\d{1,100}',input_data).group()) 
+    print(game_number)
 
     red_games = re.findall("[0-9]{1,5} red",input_data)
     # print(red_games)
@@ -50,15 +50,15 @@ def game_checker(input_data: str):
         # print(red_dice_counts)
     # print(red_dice_counts)
     red_dice_counts = sorted(red_dice_counts)
-    # print(red_dice_counts[len(red_dice_counts)- 1])
-    if red_dice_counts[len(red_dice_counts)- 1] > 12:
-        red_valid = False
-        # print(red_valid)
-        print("Too many red!")
-    else:
-        red_valid = True
-        # print(red_valid)
-        print("Red - valid game")
+    highest_red_dice = red_dice_counts[len(red_dice_counts)- 1]
+    print(highest_red_dice)
+    return(highest_red_dice)
+    
+
+def green_dice_check(input_data: str):
+    # input_data = "Game 1: 5 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
+    game_number = int(re.search(r'\d{1,100}',input_data).group()) 
+    print(game_number)
 
     green_games = re.findall("[0-9]{1,5} green",input_data)
     # print(green_games)
@@ -70,20 +70,9 @@ def game_checker(input_data: str):
         # print(green_dice_counts)
     # print(green_dice_counts)
     green_dice_counts = sorted(green_dice_counts)
-    # print(green_dice_counts[len(green_dice_counts)- 1])
-    if green_dice_counts[len(green_dice_counts)- 1] > 13:
-        green_valid = False
-        # print(green_valid)
-        print("Too many green!")
-    else:
-        green_valid = True
-        # print(green_valid)
-        print("Green - valid game")
-    
-    if blue_valid == True and red_valid == True and green_valid == True:
-        return game_number
-    else:
-        print("Invalid game")
+    highest_green_dice = green_dice_counts[len(green_dice_counts)- 1]
+    print(highest_green_dice)
+    return(highest_green_dice)
 
 # Sorted list of integers for each game type - look at last item in the list - if higher than, game not possible. If lower, store TRUE and go to next colour.
 
@@ -96,19 +85,20 @@ def game_checker(input_data: str):
 def main():
     input_data = read_file(FILE_PATH)
     print(input_data)
-    valid_game_sum = 0
+    game_cube_power = 0
+    total_cube_power = 0
     for game in input_data:
-        checker_output = game_checker(game)
-        print(checker_output)
-        if checker_output == None:
-            print("Invalid game - no addition triggered")
-            continue
-        else:
-            valid_game_sum += checker_output
-            print("Addition triggered")
-            print(valid_game_sum)
-    print(valid_game_sum)
-
+        highest_blue_dice = blue_dice_check(game)
+        print(highest_blue_dice)
+        highest_red_dice = red_dice_check(game)
+        print(highest_red_dice)
+        highest_green_dice = green_dice_check(game)
+        print(highest_green_dice)
+        game_cube_power = highest_blue_dice*highest_red_dice*highest_green_dice
+        print(game_cube_power)
+        total_cube_power += game_cube_power
+        print(total_cube_power)
+    print(total_cube_power)
 
 if __name__ == "__main__":
     main()
