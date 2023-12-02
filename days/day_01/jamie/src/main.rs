@@ -43,18 +43,13 @@ fn conv<S: Iterator<Item = String>>(source: S) -> u32 {
         .enumerate()
         .map(|(i, s)| {
             print!("{i}) s = {s} ");
-            let first = s
-                .chars()
-                .text_to_number()
-                .filter(|s| s.is_ascii_digit())
-                .nth(0);
+            let first = s.chars().text_to_number().find(|s| s.is_ascii_digit());
 
             let last = s
                 .chars()
                 .rev()
                 .text_to_number_rev()
-                .filter(|s| s.is_ascii_digit())
-                .nth(0);
+                .find(|s| s.is_ascii_digit());
 
             let mut val_string = String::with_capacity(2);
             if let Some(c) = first {
