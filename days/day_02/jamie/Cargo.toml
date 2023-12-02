@@ -3,6 +3,21 @@ name = "day_02"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "day_02_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "day_02"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "parser_benchmark"
+harness = false
