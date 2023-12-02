@@ -126,12 +126,20 @@ fn main() {
     let sum_of_ids = stdin
         .load_games()
         .map(|r| r.unwrap())
-        .filter(|g| {
-            g.rounds
-                .iter()
-                .all(|r| r.red < 13 && r.green < 14 && r.blue < 15)
+        .map(|g| {
+            let mut min_round = Round {
+                red: u32::MIN,
+                green: u32::MIN,
+                blue: u32::MIN,
+            };
+            g.rounds.iter().for_each(|r| {
+                min_round.red = min_round.red.max(r.red);
+                min_round.blue = min_round.blue.max(r.blue);
+                min_round.green = min_round.green.max(r.green);
+            });
+            let power = min_round.red * min_round.blue * min_round.green;
+            power
         })
-        .map(|g| g.index)
         .sum::<u32>();
     println!("sum_of_ids: {sum_of_ids}");
 }
