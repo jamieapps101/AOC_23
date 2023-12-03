@@ -137,8 +137,7 @@ fn main() {
                 min_round.blue = min_round.blue.max(r.blue);
                 min_round.green = min_round.green.max(r.green);
             });
-            let power = min_round.red * min_round.blue * min_round.green;
-            power
+            min_round.red * min_round.blue * min_round.green
         })
         .sum::<u32>();
     println!("sum_of_ids: {sum_of_ids}");
