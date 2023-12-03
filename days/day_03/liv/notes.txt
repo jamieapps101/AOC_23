@@ -1,0 +1,211 @@
+a = [
+"abcde",
+"abcde",
+"abcde",
+"abcde",
+"abcde",
+]
+
+b = [
+"12345",
+"12345",
+"12345",
+"12345",
+"12345",
+]
+
+
+
+for i in range(len(a)):
+  for j in range(len(a[i])):
+    a[i][j] == b[i][j] ?
+    
+
+
+############ star isolation
+
+x       A[                              ]
+...*.     ...*.   .....   .....   .....
+.....     .....   .....   .....   .....
+*..*. ->  ..... + *.... + ...*. + .....
+.....     .....   .....   .....   .....
+.*...     .....   .....   .....   .*...
+
+empty: List[str]
+str === List[char]
+empty: List[List[char]] --> Map
+
+empty = [
+".....",
+".....",
+".....",
+".....",
+".....",
+]
+
+A = [] # a list of maps with isolated stars in
+for i in range(len(x)):
+  for j in range(len(x[i])):
+
+    if x[i][j] == '*':
+      tmp = copy(empty)
+      tmp[i][j] = '*'
+      A.push(tmp)
+
+
+for a in A:
+  < everything that proceeds >
+
+
+############ Padding /dilation
+a           b
+.....       .....
+.....       .***.
+..*..   ->  .***.
+.....       .***.
+.....       .....
+
+a = [
+".....",
+".....",
+"..*..",
+".....",
+".....",
+]
+
+b = [
+".....",
+".....",
+".....",
+".....",
+".....",
+]
+
+
+for i in range(len(a)):
+  for j in range(len(a[i])):
+  
+    if a[i][j] == '.':
+      continue
+    for i_incr in [-1,0,1]:
+    	for j_incr in [-1,0,1]:
+    	    i_offset = i+i_incr
+    	    j_offset = j+j_incr
+    	    if i_offset < 0 or j_offset < 0 or i_offset == len(a) or j_offset == len(a[i_offset]):
+    	      continue
+    	    b[i_incr][j_incr] = "*"
+    	   
+############ Logical and
+
+r           b          c
+123..       .....      .....
+...32       .***.      ...3.
+.43..   &   .***.  ->  .43..
+...1.       .***.      ...1.
+.6...       .....      .....
+
+b = [
+".....",
+".***.",
+".***.",
+".***.",
+".....",
+]
+
+c = [
+".....",
+".....",
+".....",
+".....",
+".....",
+]
+
+for i in range(len(b)):
+  for j in range(len(b[i])):
+    if b[i][j] == '*':
+      c[i][j] = r[i][j]
+      
+      
+############ number reconstruction
+
+r           c          d
+123..       .....      .....
+...32       ...3.      ...32
+.43..   R   .43..  ->  .43..
+...1.       ...1.      ...1.
+.6...       .....      .....
+
+
+
+
+#
+#        ____          ____
+#       |  A |  --1--> | B |
+#       |____|  <--2-- |___|
+#
+#
+#
+#
+
+
+# a list of clumps for all this 'a' Map aka isolated star
+a_clumps = []
+for i in range(len(c)):
+  j = 0
+  j_ref = 0 # like j, but for our reference data r
+  clump_start = None
+  clump_end = None
+  clump_state = 0
+  while true:
+    # no clump found state
+    if clump_state == 0:
+      # if we find a number, we have found a clump! :-)
+      if c[i][j] != '.':
+      	clump_state += 1
+      	clump_start = j
+      j += 1
+    # we've found a clump, be we don't know where the clump ends
+    elif clump_state == 1:
+      # we found the end!
+      # now to look in the reference data
+      if c[i][j] == '.':
+        clump_end = j - 1
+        clump_state += 1 
+        j_ref = clump_start
+    elif clump_state == 2:
+      # we are now looking for the start of the clump in the reference data
+      j_ref -= 1
+      if j_ref < 0 or r[i][j_ref] == '.':
+        # we found the start of the reference clump
+        clump_start = j_ref+1
+        clump_state += 1
+        # this now takes us to where the clump end was in c
+        j_ref = clump_end
+    elif clump_state == 3:
+      # we have found the start, and now we are looking for the end of the clump in reference data   ## 2038123......
+      j_ref += 1
+      if j_ref == len(c[i]) or r[i][j_ref] == '.':
+        # we have fond the end of the reference clump
+        clump_end = j_ref-1
+        clump_state += 1
+        # we could set it to j_ref -1 , however the next state would end up exploring and finding
+        # the . so we might as well save the effort and move on
+        j = j_ref
+    elif clump_state == 4:
+        # we have round the clump start/end in the reference data, lets record this
+        a_clumps.push({
+            "clump_start": clump_start,
+            "clump_end": clump_end,
+            "value":  int(r[i][clump_start:clump_end+1])
+        })
+        clump_state = 0
+        
+        
+if len(a_clumps) == 2:
+    ratio = a_clumps[0]["value"] * a_clumps[1]["value"]
+        
+      
+        
+
+    
+  	
