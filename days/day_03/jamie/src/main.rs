@@ -43,13 +43,13 @@ impl Token {
         matches!(self.token_type, TokenType::Symbol(_))
     }
 
-    // fn get_symbol(&self) -> Option<char> {
-    //     if let TokenType::Symbol(c) = self.token_type {
-    //         Some(c)
-    //     } else {
-    //         None
-    //     }
-    // }
+    fn get_symbol(&self) -> Option<char> {
+        if let TokenType::Symbol(c) = self.token_type {
+            Some(c)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -151,7 +151,7 @@ struct PartNumberFinder<S: Iterator<Item = Vec<Token>>> {
     n_3_line: Option<Vec<Token>>,
     n_2_line: Option<Vec<Token>>,
     n_1_line: Option<Vec<Token>>,
-    buffer: Vec<Option<Token>>,
+    buffer: Vec<Option<u32>>,
     buffer_head: usize,
 }
 
@@ -169,7 +169,7 @@ impl<S: Iterator<Item = Vec<Token>>> FindPartNumbers<S> for S {
 }
 
 impl<S: Iterator<Item = Vec<Token>>> PartNumberFinder<S> {
-    fn get_next_from_buffer(&mut self) -> Option<Token> {
+    fn get_next_from_buffer(&mut self) -> Option<u32> {
         if self.buffer_head < self.buffer.len() {
             let rtn_val = std::mem::take(&mut self.buffer[self.buffer_head]);
             self.buffer_head += 1;
@@ -247,8 +247,65 @@ fn adjacent_numbers(
     out
 }
 
+fn find_gear_ratios(
+    number_line: &[Token],
+    previous_line: Option<&[Token]>,
+    next_line: Option<&[Token]>,
+) -> Vec<u32> {
+    let mut out = Vec::new();
+    // scan previous line
+    for symbol in number_line.iter().filter(|t| t.get_symbol() == Some('*')) {
+        // // dbg!(&number);
+        let mut numbers = Vec::<u32>::with_capacity(3);
+        let mut invalid = false;
+        if let Some(previous_line) = previous_line {
+            for number in previous_line.iter().filter(|t| t.is_number()) {
+                // // dbg!(&symbol);
+                if number.is_adjacent(symbol) {
+                    numbers.push(number.get_number().unwrap());
+                    invalid = numbers.len() == 3;
+                    if invalid {
+                        break;
+                    }
+                }
+            }
+        }
+        if !invalid {
+            for number in number_line.iter().filter(|t| t.is_number()) {
+                // // dbg!(&symbol);
+                if number.is_adjacent(symbol) {
+                    numbers.push(number.get_number().unwrap());
+                    invalid = numbers.len() == 3;
+                    if invalid {
+                        break;
+                    }
+                }
+            }
+        }
+        if !invalid {
+            if let Some(next_line) = next_line {
+                for number in next_line.iter().filter(|t| t.is_number()) {
+                    // // dbg!(&symbol);
+                    if number.is_adjacent(symbol) {
+                        numbers.push(number.get_number().unwrap());
+                        invalid = numbers.len() == 3;
+                        if invalid {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if numbers.len() == 2 {
+            out.push(numbers[0] * numbers[1]);
+        }
+    }
+
+    out
+}
+
 impl<S: Iterator<Item = Vec<Token>>> Iterator for PartNumberFinder<S> {
-    type Item = Token;
+    type Item = u32;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // try to get a token from the buffer
@@ -265,26 +322,30 @@ impl<S: Iterator<Item = Vec<Token>>> Iterator for PartNumberFinder<S> {
             ) {
                 (None, None, None) => {
                     self.n_1_line = self.source.next()?.into();
-                    let mut last_token_opt: Option<Token> = None;
-                    for token in self.n_1_line.as_ref().unwrap().iter() {
-                        if let Some(last_token) = last_token_opt.as_mut() {
-                            // if one token is a symbol and the other is a number and they're adjacent
-                            if (token.is_number() ^ last_token.is_number())
-                                && token.is_adjacent(last_token)
-                            {
-                                self.buffer.push(token.clone().into());
-                            }
-                        } else {
-                            last_token_opt = Some(token.clone());
-                        }
-                    }
+                    let ratios =
+                        find_gear_ratios(self.n_1_line.as_ref().unwrap().as_slice(), None, None);
+                    self.buffer.extend(ratios.into_iter().map(|r| Some(r)));
+
+                    // let mut last_token_opt: Option<Token> = None;
+                    // for token in self.n_1_line.as_ref().unwrap().iter() {
+                    //     if let Some(last_token) = last_token_opt.as_mut() {
+                    //         // if one token is a symbol and the other is a number and they're adjacent
+                    //         if (token.is_number() ^ last_token.is_number())
+                    //             && token.is_adjacent(last_token)
+                    //         {
+                    //             self.buffer.push(token.clone().into());
+                    //         }
+                    //     } else {
+                    //         last_token_opt = Some(token.clone());
+                    //     }
+                    // }
                 }
                 (Some(l), None, None) => {
                     let n_2_line = self.source.next()?;
                     // for each number on the middle line, look for an adjacent symbol on the
                     // previous line and then the current line
                     let numbers_with_adjacency =
-                        adjacent_numbers(l.as_slice(), None, Some(n_2_line.as_slice()));
+                        find_gear_ratios(l.as_slice(), None, Some(n_2_line.as_slice()));
                     // dbg!(&numbers_with_adjacency);
                     self.buffer
                         .extend(numbers_with_adjacency.into_iter().map(|r| Some(r)));
@@ -307,7 +368,7 @@ impl<S: Iterator<Item = Vec<Token>>> Iterator for PartNumberFinder<S> {
                     // for each number on the middle line, look for an adjacent symbol on the
                     // previous line and then the current line and the next line
                     let numbers =
-                        adjacent_numbers(l2.as_slice(), Some(l1.as_slice()), Some(l3.as_slice()));
+                        find_gear_ratios(l2.as_slice(), Some(l1.as_slice()), Some(l3.as_slice()));
                     self.buffer.extend(numbers.into_iter().map(|r| Some(r)));
                     // // dbg!("and here");
                     if let Some(next_line) = self.source.next() {
@@ -331,7 +392,7 @@ impl<S: Iterator<Item = Vec<Token>>> Iterator for PartNumberFinder<S> {
                 (None, Some(l2), Some(l3)) => {
                     // we just need to scan the last line now
                     let numbers_with_adjacency =
-                        adjacent_numbers(l3.as_slice(), Some(l2.as_slice()), None);
+                        find_gear_ratios(l3.as_slice(), Some(l2.as_slice()), None);
                     // dbg!(&numbers_with_adjacency);
                     self.buffer
                         .extend(numbers_with_adjacency.into_iter().map(|r| Some(r)));
@@ -352,7 +413,6 @@ fn main() {
         .enumerate()
         .map(|(i, line)| line.chars().read_symbols(i).collect())
         .find_part_numbers()
-        .filter_map(|t| t.get_number())
         .sum();
     println!("part_numbers: {part_numbers}");
 }
@@ -416,39 +476,39 @@ mod test {
         assert_eq!(tokens[9][1].is_adjacent(&tokens[8][1]), false);
     }
 
-    #[test]
-    fn test_adjacency_finder() {
-        let input = vec![
-            "467..114..".to_owned(),
-            "...*......".to_owned(),
-            "..35..633.".to_owned(),
-            "......#...".to_owned(),
-            "617*......".to_owned(),
-            ".....+.58.".to_owned(),
-            "..592.....".to_owned(),
-            "......755.".to_owned(),
-            "...$.*....".to_owned(),
-            ".664.598..".to_owned(),
-        ];
-        let part_numbers: Vec<Token> = input
-            .into_iter()
-            .enumerate()
-            .map(|(i, line)| line.chars().read_symbols(i).collect())
-            .find_part_numbers()
-            .collect();
-        println!("part_numbers: {part_numbers:?}");
-        let values = part_numbers
-            .iter()
-            .filter_map(|t| {
-                if let TokenType::Number(n) = t.token_type {
-                    Some(n)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<u32>>();
-        let sum: u32 = values.iter().sum();
-        assert_eq!(values, vec![467, 35, 633, 617, 592, 755, 664, 598]);
-        assert_eq!(sum, 4361);
-    }
+    // #[test]
+    // fn test_adjacency_finder() {
+    //     let input = vec![
+    //         "467..114..".to_owned(),
+    //         "...*......".to_owned(),
+    //         "..35..633.".to_owned(),
+    //         "......#...".to_owned(),
+    //         "617*......".to_owned(),
+    //         ".....+.58.".to_owned(),
+    //         "..592.....".to_owned(),
+    //         "......755.".to_owned(),
+    //         "...$.*....".to_owned(),
+    //         ".664.598..".to_owned(),
+    //     ];
+    //     let part_numbers: Vec<Token> = input
+    //         .into_iter()
+    //         .enumerate()
+    //         .map(|(i, line)| line.chars().read_symbols(i).collect())
+    //         .find_part_numbers()
+    //         .collect();
+    //     println!("part_numbers: {part_numbers:?}");
+    //     let values = part_numbers
+    //         .iter()
+    //         .filter_map(|t| {
+    //             if let TokenType::Number(n) = t.token_type {
+    //                 Some(n)
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .collect::<Vec<u32>>();
+    //     let sum: u32 = values.iter().sum();
+    //     assert_eq!(values, vec![467, 35, 633, 617, 592, 755, 664, 598]);
+    //     assert_eq!(sum, 4361);
+    // }
 }
