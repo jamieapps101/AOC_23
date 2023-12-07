@@ -16,3 +16,6 @@ Cargo.lock
 # python section
 *.pyc
 *.venv
+
+# all data directories
+data
