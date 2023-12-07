@@ -19,3 +19,7 @@ Cargo.lock
 
 # all data directories
 data
+
+instructions.txt
+input_data.txt
+test_data.txt
