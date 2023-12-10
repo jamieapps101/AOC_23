@@ -49,7 +49,7 @@ struct MapRange {
 
 impl MapSection {
     fn contains(&self, input: u64) -> bool {
-        input >= self.source.start && input <= self.source.end
+        input >= self.source.start && input < self.source.end
     }
 
     fn translate(&self, input: u64) -> u64 {
@@ -141,33 +141,50 @@ fn load<I: Iterator<Item = String>>(source: I) -> (Vec<u64>, MapSet) {
 
 impl MapSet {
     fn seed2loc(&self, seed: u64) -> u64 {
-        dbg!(seed);
+        // dbg!(seed);
         let soil = self.seed2soil.map(seed);
-        dbg!(soil);
+        // dbg!(soil);
         let fertilizer = self.soil2fertilizer.map(soil);
-        dbg!(fertilizer);
+        // dbg!(fertilizer);
         let water = self.fertilizer2water.map(fertilizer);
-        dbg!(water);
+        // dbg!(water);
         let light = self.water2light.map(water);
-        dbg!(light);
+        // dbg!(light);
         let temp = self.light2temperature.map(light);
-        dbg!(temp);
+        // dbg!(temp);
         let hum = self.temperature2humidity.map(temp);
-        dbg!(hum);
+        // dbg!(hum);
         let loc = self.humidity2location.map(hum);
-        dbg!(loc);
+        // dbg!(loc);
         loc
     }
 }
 
 fn main() {
     let (seeds, map_set) = load(std::io::stdin().lines().filter_map(Result::ok));
-    let mut min_loc = u64::MAX;
-    for seed in seeds {
-        let loc = map_set.seed2loc(seed);
-        min_loc = min_loc.min(loc);
+
+    let mut seed_pairs = Vec::new();
+    let mut seed_start_opt = None;
+    for seed_n in seeds {
+        if let Some(seed_start) = seed_start_opt {
+            seed_pairs.push((seed_start, seed_n));
+            seed_start_opt = None;
+        } else {
+            seed_start_opt = Some(seed_n);
+        }
     }
-    println!("min_loc: {min_loc}");
+    let min_loc = seed_pairs
+        .into_iter()
+        .map(|(start, range)| {
+            (start..(start + range))
+                .into_iter()
+                .map(|seed_index| map_set.seed2loc(seed_index))
+            // println!("min_loc: {min_loc}")
+        })
+        .flatten()
+        .min();
+
+    println!("min_loc: {}", min_loc.unwrap());
 }
 
 #[cfg(test)]
@@ -216,5 +233,68 @@ mod test {
             .map(|s| map_set.seed2loc(s))
             .collect::<Vec<u64>>();
         assert_eq!(locations, vec![82, 43, 86, 35]);
+    }
+
+    #[test]
+    fn test_part2() {
+        let data = vec![
+            "seeds: 79 14 55 13",
+            "",
+            "seed-to-soil map:",
+            "50 98 2",
+            "52 50 48",
+            "",
+            "soil-to-fertilizer map:",
+            "0 15 37",
+            "37 52 2",
+            "39 0 15",
+            "",
+            "fertilizer-to-water map:",
+            "49 53 8",
+            "0 11 42",
+            "42 0 7",
+            "57 7 4",
+            "",
+            "water-to-light map:",
+            "88 18 7",
+            "18 25 70",
+            "",
+            "light-to-temperature map:",
+            "45 77 23",
+            "81 45 19",
+            "68 64 13",
+            "",
+            "temperature-to-humidity map:",
+            "0 69 1",
+            "1 0 69",
+            "",
+            "humidity-to-location map:",
+            "60 56 37",
+            "56 93 4",
+        ];
+        let (seeds, map_set) = load(data.into_iter().map(|s| s.to_owned()));
+
+        let mut seed_pairs = Vec::new();
+        let mut seed_start_opt = None;
+        for seed_n in seeds {
+            if let Some(seed_start) = seed_start_opt {
+                seed_pairs.push((seed_start, seed_n));
+                seed_start_opt = None;
+            } else {
+                seed_start_opt = Some(seed_n);
+            }
+        }
+        let mut seed_loc_min = u64::MAX;
+        for (start, range) in seed_pairs {
+            for seed_index in start..(start + range) {
+                let loc = map_set.seed2loc(seed_index);
+                seed_loc_min = seed_loc_min.min(loc);
+            }
+        }
+        // let locations = seeds
+        //     .into_iter()
+        //     .map(|s| map_set.seed2loc(s))
+        //     .collect::<Vec<u64>>();
+        assert_eq!(seed_loc_min, 46);
     }
 }
