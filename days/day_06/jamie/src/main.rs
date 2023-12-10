@@ -19,8 +19,8 @@ impl<I: Iterator<Item = char>> ToNumbers<I> for I {
 }
 
 impl<C: Iterator<Item = char>> NumberSource<C> {
-    fn parse_buffer(&mut self) -> Option<u32> {
-        if let Ok(v) = self.buffer.parse::<u32>() {
+    fn parse_buffer(&mut self) -> Option<u64> {
+        if let Ok(v) = self.buffer.parse::<u64>() {
             self.buffer.clear();
             Some(v)
         } else {
@@ -31,7 +31,7 @@ impl<C: Iterator<Item = char>> NumberSource<C> {
 }
 
 impl<C: Iterator<Item = char>> Iterator for NumberSource<C> {
-    type Item = u32;
+    type Item = u64;
     fn next(&mut self) -> Option<Self::Item> {
         if self.fuse {
             return None;
@@ -62,7 +62,7 @@ impl<C: Iterator<Item = char>> Iterator for NumberSource<C> {
     }
 }
 
-struct RecordSource<C: Iterator<Item = u32>> {
+struct RecordSource<C: Iterator<Item = u64>> {
     time_source: C,
     dist_source: C,
 }
@@ -89,7 +89,7 @@ impl<'a> RecordSource<NumberSource<Chars<'a>>> {
 }
 
 impl<C: Iterator<Item = char>> Iterator for RecordSource<NumberSource<C>> {
-    type Item = u32;
+    type Item = u64;
     fn next(&mut self) -> Option<Self::Item> {
         let (race_time, record_distance) = self.time_source.next().zip(self.dist_source.next())?;
         let mut ways_to_beat_record = 0;
@@ -110,8 +110,9 @@ fn main() {
         .lines()
         .filter_map(Result::ok)
         .filter(|l| !l.is_empty())
+        .map(|s| s.replace(' ', ""))
         .collect::<Vec<String>>();
     let data = data.join("\n");
-    let multipled_score: u32 = RecordSource::new(&data).product();
+    let multipled_score: u64 = RecordSource::new(&data).next().unwrap();
     println!("multipled_score: {multipled_score}");
 }
