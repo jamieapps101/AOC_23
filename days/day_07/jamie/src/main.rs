@@ -64,9 +64,7 @@ impl TryFrom<&str> for Hand {
             _ => {}
         }
         for (i, c) in s.chars().enumerate() {
-            cards[i] = c
-                .try_into()
-                .map_err(|e| HandParseError::CardParseError(e))?;
+            cards[i] = c.try_into().map_err(HandParseError::CardParseError)?;
         }
         Ok(Self { cards })
     }
@@ -84,9 +82,9 @@ use std::cmp::Ordering;
 impl Hand {
     fn against(&self, other: &Self) -> HandCompare {
         let self_type = HandType::from(self);
-        dbg!(&self_type);
+        // dbg!(&self_type);
         let other_type = HandType::from(other);
-        dbg!(&other_type);
+        // dbg!(&other_type);
         match self_type.partial_cmp(&other_type).unwrap() {
             Ordering::Less => HandCompare::Loses,
             Ordering::Greater => HandCompare::Wins,
@@ -98,7 +96,8 @@ impl Hand {
                         Ordering::Equal => {}
                     }
                 }
-                return HandCompare::Draws;
+                // panic!("We should not get here");
+                HandCompare::Draws
             }
         }
     }
@@ -135,6 +134,12 @@ impl PartialOrd for HandType {
     }
 }
 
+impl From<Hand> for HandType {
+    fn from(hand: Hand) -> Self {
+        (&hand).into()
+    }
+}
+
 impl From<&Hand> for HandType {
     fn from(hand: &Hand) -> Self {
         let mut cards = Vec::from(hand.cards);
@@ -150,12 +155,16 @@ impl From<&Hand> for HandType {
         let mut high_card = None;
 
         for c in cards.into_iter() {
-            dbg!(c);
+            // dbg!(c);
             if let Some(last_c) = last {
-                dbg!(last_c);
+                // dbg!(last_c);
                 if last_c == c {
                     current += 1;
                 } else {
+                    if max_count == current && max_card != last {
+                        second_max_count = current;
+                        second_max_card = last;
+                    }
                     current = 1;
                 }
                 if current > max_count {
@@ -176,8 +185,19 @@ impl From<&Hand> for HandType {
                 high_card = Some(c);
             }
         }
-        dbg!(max_count);
-        dbg!(second_max_count);
+        if max_count == current && max_card != last {
+            second_max_count = current;
+            second_max_card = last;
+        }
+        // if we've not assigned a second place most common card
+        // but the last card is different, then we need to catch
+        // this.
+        if second_max_count == 0 && max_card != last {
+            second_max_count = current;
+            second_max_card = last;
+        }
+        // dbg!(max_count);
+        // dbg!(second_max_count);
         match (max_count, second_max_count) {
             (5, 0) => HandType::FiveOfAKind(max_card.unwrap()),
             (4, _) => HandType::FourOfAKind(max_card.unwrap()),
@@ -196,7 +216,7 @@ fn calculate_set_score(mut set: Vec<(Hand, u32)>) -> u32 {
         HandCompare::Loses => Ordering::Less,
         HandCompare::Draws => Ordering::Equal,
     });
-    dbg!(&set);
+    // dbg!(&set);
     set.into_iter()
         .enumerate()
         .map(|(index, (_hand, bid))| (index as u32 + 1) * bid)
@@ -206,17 +226,21 @@ fn calculate_set_score(mut set: Vec<(Hand, u32)>) -> u32 {
 fn main() {
     let hand_bids = std::io::stdin()
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .filter(|s| !s.is_empty())
         .map(|s| {
-            (
+            print!("{s}  -  ");
+            let t = (
                 Hand::try_from(&s[0..5]).unwrap(),
-                (&s[6..]).parse::<u32>().unwrap(),
-            )
+                s[6..].parse::<u32>().unwrap(),
+            );
+            println!("{:?}", t);
+            t
         })
         .collect::<Vec<(Hand, u32)>>();
     println!("loaded: {} hands", hand_bids.len());
     let total_score = calculate_set_score(hand_bids);
+
     println!("total_score: {total_score}");
 }
 
@@ -241,6 +265,172 @@ mod test {
         assert_eq!(a.against(&b), HandCompare::Wins);
     }
 
+    mod hand_type {
+        use super::*;
+
+        #[test]
+        fn test_five_of_kind() {
+            // five of a kind
+            assert_eq!(
+                Hand::try_from("AAAAA").unwrap().try_into(),
+                Ok(HandType::FiveOfAKind(Card::Ace))
+            );
+        }
+
+        #[test]
+        fn test_four_of_kind() {
+            // four of a kind
+            for i in 0..5 {
+                let mut test_string = String::with_capacity(5);
+                for j in 0..5 {
+                    if i == j {
+                        test_string.push('2');
+                    } else {
+                        test_string.push('A');
+                    }
+                }
+                dbg!(test_string.as_str());
+                assert_eq!(
+                    Hand::try_from(test_string.as_str()).unwrap().try_into(),
+                    Ok(HandType::FourOfAKind(Card::Ace))
+                );
+            }
+        }
+
+        #[test]
+        fn test_full_house() {
+            let pair_position_picker = (0..5)
+                .into_iter()
+                .map(|i| (0..5).into_iter().map(move |j| (i, j)))
+                .flatten()
+                .filter(|(i, j)| i != j);
+            for (a, b) in pair_position_picker {
+                let mut test_string = String::with_capacity(5);
+                for i in 0..5 {
+                    if i == a || i == b {
+                        test_string.push('a');
+                    } else {
+                        test_string.push('2');
+                    }
+                }
+                dbg!(test_string.as_str());
+                assert_eq!(
+                    Hand::try_from(test_string.as_str()).unwrap().try_into(),
+                    Ok(HandType::FullHouse(Card::N2, Card::Ace))
+                );
+            }
+        }
+
+        #[test]
+        fn test_three_of_kind() {
+            // three of a kind
+            for i in 0..5 {
+                for j in 0..5 {
+                    if i == j {
+                        continue;
+                    }
+                    let mut test_string = String::with_capacity(5);
+                    for k in 0..5 {
+                        if k == i {
+                            test_string.push('2');
+                        } else if k == j {
+                            test_string.push('3');
+                        } else {
+                            test_string.push('A');
+                        }
+                    }
+                    dbg!(test_string.as_str());
+                    assert_eq!(
+                        Hand::try_from(test_string.as_str()).unwrap().try_into(),
+                        Ok(HandType::ThreeOfAKind(Card::Ace))
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn test_two_pair() {
+            let pair_position_picker = (0..5)
+                .into_iter()
+                .map(|i| (0..5).into_iter().map(move |j| (i, j)))
+                .flatten()
+                .filter(|(i, j)| i != j);
+            let pos_iter = pair_position_picker
+                .clone()
+                .map(|a| pair_position_picker.clone().map(move |b| (a, b)))
+                .flatten()
+                .filter(|((a0, a1), (b0, b1))| a0 != b0 && a1 != b1 && a0 != b1 && a1 != b0);
+
+            dbg!("running");
+            let mut combinations = 0;
+            for ((a0, a1), (b0, b1)) in pos_iter {
+                // dbg!(((a0, a1), (b0, b1)));
+                let mut test_str = String::with_capacity(5);
+                for i in 0..5 {
+                    if i == a0 || i == a1 {
+                        test_str.push('2');
+                    } else if i == b0 || i == b1 {
+                        test_str.push('3');
+                    } else {
+                        test_str.push('a');
+                    }
+                }
+                dbg!(test_str.as_str());
+                assert_eq!(
+                    Hand::try_from(test_str.as_str()).unwrap().try_into(),
+                    Ok(HandType::TwoPair(Card::N2, Card::N3))
+                );
+                combinations += 1;
+            }
+            println!("tested {} combinations", combinations);
+        }
+
+        #[test]
+        fn test_one_pair() {
+            let pair_position_picker = (0..5)
+                .into_iter()
+                .map(|i| (0..5).into_iter().map(move |j| (i, j)))
+                .flatten()
+                .filter(|(i, j)| i != j);
+            let opts = ['2', '3', '4', '5', '6'];
+            for (a, b) in pair_position_picker {
+                let mut test_string = String::with_capacity(5);
+                for i in 0..5 {
+                    if i == a || i == b {
+                        test_string.push('a');
+                    } else {
+                        test_string.push(opts[i]);
+                    }
+                }
+                dbg!(test_string.as_str());
+                assert_eq!(
+                    Hand::try_from(test_string.as_str()).unwrap().try_into(),
+                    Ok(HandType::OnePair(Card::Ace))
+                );
+            }
+        }
+
+        #[test]
+        fn test_high_card() {
+            let opts = ['2', '3', '4', '5', '6'];
+            for i in 0..5 {
+                let mut test_string = String::with_capacity(5);
+
+                for j in 0..5 {
+                    if i == j {
+                        test_string.push('a');
+                    } else {
+                        test_string.push(opts[j]);
+                    }
+                }
+                dbg!(test_string.as_str());
+                assert_eq!(
+                    Hand::try_from(test_string.as_str()).unwrap().try_into(),
+                    Ok(HandType::HighCard(Card::Ace))
+                );
+            }
+        }
+    }
     #[test]
     fn test_calculate_set_score() {
         let set = vec![
@@ -250,6 +440,20 @@ mod test {
             (Hand::try_from("KTJJT").unwrap(), 220),
             (Hand::try_from("QQQJA").unwrap(), 483),
         ];
+        assert_eq!((&set[0].0).try_into(), Ok(HandType::OnePair(Card::N3)));
+        assert_eq!((&set[1].0).try_into(), Ok(HandType::ThreeOfAKind(Card::N5)));
+        assert_eq!(
+            (&set[2].0).try_into(),
+            Ok(HandType::TwoPair(Card::N7, Card::King))
+        );
+        assert_eq!(
+            (&set[3].0).try_into(),
+            Ok(HandType::TwoPair(Card::N10, Card::Jack))
+        );
+        assert_eq!(
+            (&set[4].0).try_into(),
+            Ok(HandType::ThreeOfAKind(Card::Queen))
+        );
         let score = calculate_set_score(set);
         assert_eq!(score, 6440);
     }
