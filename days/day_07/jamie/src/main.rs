@@ -88,13 +88,18 @@ impl Hand {
         let other_type = HandType::from(other);
         dbg!(&other_type);
         match self_type.partial_cmp(&other_type).unwrap() {
-            Ordering::Less => HandCompare::Wins,
-            Ordering::Greater => HandCompare::Loses,
-            Ordering::Equal => match self.cards[0].partial_cmp(&other.cards[0]).unwrap() {
-                Ordering::Less => HandCompare::Wins,
-                Ordering::Greater => HandCompare::Loses,
-                Ordering::Equal => HandCompare::Draws,
-            },
+            Ordering::Less => HandCompare::Loses,
+            Ordering::Greater => HandCompare::Wins,
+            Ordering::Equal => {
+                for i in 0..5 {
+                    match self.cards[i].partial_cmp(&other.cards[i]).unwrap() {
+                        Ordering::Less => return HandCompare::Loses,
+                        Ordering::Greater => return HandCompare::Wins,
+                        Ordering::Equal => {}
+                    }
+                }
+                return HandCompare::Draws;
+            }
         }
     }
 }
