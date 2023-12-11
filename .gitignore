@@ -23,3 +23,4 @@ data
 instructions.txt
 input_data.txt
 test_data.txt
+*.log
