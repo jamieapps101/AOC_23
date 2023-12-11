@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 from typing import List
-
+import os
 
 def nums_to_nums(nums: str) -> List[int]:
     return [int(n) for n in nums.split(" ") if len(n) > 0]
@@ -30,7 +30,8 @@ def play_game(win_table: List[int]) -> List[int]:
 def main():
     # build lookup of card number to win count
     wins = []
-    with open("data/input.txt") as fp:
+    path = os.environ.get("FILE_PATH","days/day_04/liv/input_data.txt")
+    with open(path) as fp:
         for line in fp:
             line = line.strip()
             if line == "":
