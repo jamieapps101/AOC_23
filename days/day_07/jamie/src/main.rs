@@ -3,7 +3,6 @@ enum Card {
     Ace = 13,
     King = 12,
     Queen = 11,
-    Jack = 10,
     N10 = 9,
     N9 = 8,
     N8 = 7,
@@ -13,6 +12,7 @@ enum Card {
     N4 = 3,
     N3 = 2,
     N2 = 1,
+    Jack = 0,
 }
 
 #[derive(PartialEq, Debug)]
@@ -82,10 +82,8 @@ use std::cmp::Ordering;
 
 impl Hand {
     fn against(&self, other: &Self) -> HandCompare {
-        let self_type = HandType::from(self);
-        // dbg!(&self_type);
-        let other_type = HandType::from(other);
-        // dbg!(&other_type);
+        let self_type = HandType::best(self);
+        let other_type = HandType::best(other);
         match self_type.partial_cmp(&other_type).unwrap() {
             Ordering::Less => HandCompare::Loses,
             Ordering::Greater => HandCompare::Wins,
@@ -138,6 +136,49 @@ impl PartialOrd for HandType {
 impl From<Hand> for HandType {
     fn from(hand: Hand) -> Self {
         (&hand).into()
+    }
+}
+
+impl HandType {
+    fn best(hand: &Hand) -> Self {
+        let joker_count = hand.cards.iter().filter(|&c| *c == Card::Jack).count();
+        let cards = ['2', '3', '4', '5', '6', '7', '8', '9', 't', 'q', 'k', 'a'];
+        let mut counts = cards
+            .into_iter()
+            .map(|c| Card::try_from(c).unwrap())
+            .map(|c| (c, hand.cards.into_iter().filter(|&h_c| h_c == c).count()))
+            .filter(|(_card, count)| count > &0)
+            .collect::<Vec<(Card, usize)>>();
+        counts.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // dbg!(&counts);
+        assert_eq!(counts.iter().map(|c| c.1).sum::<usize>() + joker_count, 5);
+
+        return match counts.len() {
+            // if there is a single card type, then a five-of-a-kind will always be possible
+            0 | 1 => Self::FiveOfAKind(Card::Jack),
+
+            2 => {
+                if counts[0].1 + joker_count == 4 {
+                    Self::FourOfAKind(Card::Jack)
+                } else {
+                    Self::FullHouse(Card::Jack, Card::Jack)
+                }
+                // if there are only two card types, then a full house will always be possible
+            }
+            3 => {
+                if counts[0].1 + joker_count == 3 {
+                    Self::ThreeOfAKind(Card::Jack)
+                } else {
+                    Self::TwoPair(Card::Jack, Card::Jack)
+                }
+            }
+            4 => Self::OnePair(Card::Jack),
+
+            5 => Self::HighCard(Card::Jack),
+
+            _ => panic!("Hit {} counts ({} jokers)", counts.len(), joker_count),
+        };
     }
 }
 
@@ -260,6 +301,20 @@ fn main() {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_best() {
+        assert_eq!(
+            HandType::best(&Hand::try_from("QJJQ2").unwrap()),
+            HandType::FourOfAKind(Card::Jack),
+        );
+
+        let a = Hand::try_from("JKKK2").unwrap();
+        let b = Hand::try_from("QQQQ2").unwrap();
+        assert_eq!(HandType::best(&a), HandType::FourOfAKind(Card::Jack));
+        assert_eq!(HandType::best(&b), HandType::FourOfAKind(Card::Jack));
+        assert_eq!(a.against(&b), HandCompare::Loses);
+    }
 
     #[test]
     fn test_card_conversion() {
@@ -502,13 +557,34 @@ mod test {
         );
         assert_eq!(
             (&set[3].0).try_into(),
-            Ok(HandType::TwoPair(Card::Jack, Card::N10))
+            Ok(HandType::TwoPair(Card::N10, Card::Jack))
         );
         assert_eq!(
             (&set[4].0).try_into(),
             Ok(HandType::ThreeOfAKind(Card::Queen))
         );
         let score = calculate_set_score(set);
-        assert_eq!(score, 6440);
+        assert_eq!(score, 5905);
+    }
+
+    #[test]
+    fn test_calculate_best_score() {
+        let set = vec![
+            (Hand::try_from("32T3K").unwrap(), 765),
+            (Hand::try_from("T55J5").unwrap(), 684),
+            (Hand::try_from("KK677").unwrap(), 28),
+            (Hand::try_from("KTJJT").unwrap(), 220),
+            (Hand::try_from("QQQJA").unwrap(), 483),
+        ];
+        assert_eq!(HandType::best(&set[0].0), HandType::OnePair(Card::Jack));
+        assert_eq!(HandType::best(&set[1].0), HandType::FourOfAKind(Card::Jack));
+        assert_eq!(
+            HandType::best(&set[2].0),
+            HandType::TwoPair(Card::Jack, Card::Jack)
+        );
+        assert_eq!(HandType::best(&set[3].0), HandType::FourOfAKind(Card::Jack));
+        assert_eq!(HandType::best(&set[4].0), HandType::FourOfAKind(Card::Jack));
+        let score = calculate_set_score(set);
+        assert_eq!(score, 5905);
     }
 }
