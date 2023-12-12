@@ -71,6 +71,7 @@ impl TryFrom<&str> for Hand {
 }
 
 #[derive(PartialEq, Debug)]
+#[allow(dead_code)]
 enum HandCompare {
     Wins,
     Loses,
@@ -96,8 +97,8 @@ impl Hand {
                         Ordering::Equal => {}
                     }
                 }
-                // panic!("We should not get here");
-                HandCompare::Draws
+                panic!("We should not get here");
+                // HandCompare::Draws
             }
         }
     }
@@ -144,8 +145,8 @@ impl From<&Hand> for HandType {
     fn from(hand: &Hand) -> Self {
         let mut cards = Vec::from(hand.cards);
         cards.sort();
-        let mut last = None;
-        let mut current = 1;
+        let mut last_card = None;
+        let mut current_count = 0;
 
         let mut max_count = 0;
         let mut max_card = None;
@@ -154,58 +155,65 @@ impl From<&Hand> for HandType {
 
         let mut high_card = None;
 
-        for c in cards.into_iter() {
-            // dbg!(c);
-            if let Some(last_c) = last {
-                // dbg!(last_c);
-                if last_c == c {
-                    current += 1;
-                } else {
-                    if max_count == current && max_card != last {
-                        second_max_count = current;
-                        second_max_card = last;
+        let mut card_iter = cards.into_iter();
+        loop {
+            match (card_iter.next(), last_card) {
+                (Some(c), Some(last_c)) => {
+                    if c > high_card.unwrap() {
+                        high_card = Some(c);
                     }
-                    current = 1;
+                    if c == last_c {
+                        // current character is the same as the last
+                        current_count += 1;
+                    } else {
+                        // current character is different from last
+                        if current_count >= max_count {
+                            second_max_count = max_count;
+                            second_max_card = max_card;
+                            max_count = current_count;
+                            max_card = Some(last_c);
+                        } else if current_count >= second_max_count {
+                            second_max_count = current_count;
+                            second_max_card = Some(last_c);
+                        }
+                        current_count = 1;
+                        last_card = Some(c);
+                    }
                 }
-                if current > max_count {
-                    if last_c != c {
+                (Some(c), None) => {
+                    // on the first character
+                    high_card = Some(c);
+                    last_card = Some(c);
+                    current_count = 1;
+                }
+                (None, Some(last_c)) => {
+                    // had the last character
+                    if current_count >= max_count {
                         second_max_count = max_count;
                         second_max_card = max_card;
+                        max_count = current_count;
+                        max_card = Some(last_c);
+                    } else if current_count >= second_max_count {
+                        second_max_count = current_count;
+                        second_max_card = Some(last_c);
                     }
-                    max_card = Some(c);
-                    max_count = current;
+                    break;
                 }
-            }
-            last = Some(c);
-            if let Some(high_c) = high_card {
-                if c > high_c {
-                    high_card = Some(c);
-                }
-            } else {
-                high_card = Some(c);
+                (None, None) => unreachable!(),
             }
         }
-        if max_count == current && max_card != last {
-            second_max_count = current;
-            second_max_card = last;
-        }
-        // if we've not assigned a second place most common card
-        // but the last card is different, then we need to catch
-        // this.
-        if second_max_count == 0 && max_card != last {
-            second_max_count = current;
-            second_max_card = last;
-        }
+
         // dbg!(max_count);
         // dbg!(second_max_count);
         match (max_count, second_max_count) {
             (5, 0) => HandType::FiveOfAKind(max_card.unwrap()),
-            (4, _) => HandType::FourOfAKind(max_card.unwrap()),
+            (4, 1) => HandType::FourOfAKind(max_card.unwrap()),
             (3, 2) => HandType::FullHouse(max_card.unwrap(), second_max_card.unwrap()),
-            (3, _) => HandType::ThreeOfAKind(max_card.unwrap()),
+            (3, 0..=1) => HandType::ThreeOfAKind(max_card.unwrap()),
             (2, 2) => HandType::TwoPair(max_card.unwrap(), second_max_card.unwrap()),
-            (2, _) => HandType::OnePair(max_card.unwrap()),
-            (_, _) => HandType::HighCard(high_card.unwrap()),
+            (2, 0..=1) => HandType::OnePair(max_card.unwrap()),
+            (1, 1) => HandType::HighCard(high_card.unwrap()),
+            (mc, cc) => panic!("Hit undefined state ({},{})", mc, cc),
         }
     }
 }
@@ -214,11 +222,11 @@ fn calculate_set_score(mut set: Vec<(Hand, u32)>) -> u32 {
     set.sort_by(|a, b| match a.0.against(&b.0) {
         HandCompare::Wins => Ordering::Greater,
         HandCompare::Loses => Ordering::Less,
-        HandCompare::Draws => Ordering::Equal,
+        HandCompare::Draws => unreachable!(),
     });
-    set.iter().for_each(|i| {
-        println!("{:?} {:?}", HandType::from(&i.0), i);
-    });
+    // set.iter().for_each(|i| {
+    //     println!("{:?} {:?}", HandType::from(&i.0), i);
+    // });
     // dbg!(&set);
     set.into_iter()
         .enumerate()
@@ -424,7 +432,7 @@ mod test {
                 dbg!(test_str.as_str());
                 assert_eq!(
                     Hand::try_from(test_str.as_str()).unwrap().try_into(),
-                    Ok(HandType::TwoPair(Card::N2, Card::N3))
+                    Ok(HandType::TwoPair(Card::N3, Card::N2))
                 );
                 combinations += 1;
             }
@@ -490,11 +498,11 @@ mod test {
         assert_eq!((&set[1].0).try_into(), Ok(HandType::ThreeOfAKind(Card::N5)));
         assert_eq!(
             (&set[2].0).try_into(),
-            Ok(HandType::TwoPair(Card::N7, Card::King))
+            Ok(HandType::TwoPair(Card::King, Card::N7))
         );
         assert_eq!(
             (&set[3].0).try_into(),
-            Ok(HandType::TwoPair(Card::N10, Card::Jack))
+            Ok(HandType::TwoPair(Card::Jack, Card::N10))
         );
         assert_eq!(
             (&set[4].0).try_into(),
