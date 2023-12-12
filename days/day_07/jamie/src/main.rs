@@ -216,6 +216,9 @@ fn calculate_set_score(mut set: Vec<(Hand, u32)>) -> u32 {
         HandCompare::Loses => Ordering::Less,
         HandCompare::Draws => Ordering::Equal,
     });
+    set.iter().for_each(|i| {
+        println!("{:?} {:?}", HandType::from(&i.0), i);
+    });
     // dbg!(&set);
     set.into_iter()
         .enumerate()
@@ -223,21 +226,23 @@ fn calculate_set_score(mut set: Vec<(Hand, u32)>) -> u32 {
         .sum()
 }
 
-fn main() {
-    let hand_bids = std::io::stdin()
-        .lines()
+fn parse_strings<E, I: Iterator<Item = Result<String, E>>>(source: I) -> Vec<(Hand, u32)> {
+    source
         .map_while(Result::ok)
         .filter(|s| !s.is_empty())
         .map(|s| {
-            print!("{s}  -  ");
-            let t = (
+            (
                 Hand::try_from(&s[0..5]).unwrap(),
                 s[6..].parse::<u32>().unwrap(),
-            );
-            println!("{:?}", t);
-            t
+            )
         })
-        .collect::<Vec<(Hand, u32)>>();
+        .collect()
+}
+
+#[cfg(not(tarpaulin_include))]
+fn main() {
+    let hand_bids = parse_strings(std::io::stdin().lines());
+
     println!("loaded: {} hands", hand_bids.len());
     let total_score = calculate_set_score(hand_bids);
 
@@ -247,6 +252,45 @@ fn main() {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_card_conversion() {
+        assert_eq!(Card::try_from('a'), Ok(Card::Ace));
+        assert_eq!(Card::try_from('k'), Ok(Card::King));
+        assert_eq!(Card::try_from('q'), Ok(Card::Queen));
+        assert_eq!(Card::try_from('j'), Ok(Card::Jack));
+        assert_eq!(Card::try_from('t'), Ok(Card::N10));
+        assert_eq!(Card::try_from('9'), Ok(Card::N9));
+        assert_eq!(Card::try_from('8'), Ok(Card::N8));
+        assert_eq!(Card::try_from('7'), Ok(Card::N7));
+        assert_eq!(Card::try_from('6'), Ok(Card::N6));
+        assert_eq!(Card::try_from('5'), Ok(Card::N5));
+        assert_eq!(Card::try_from('4'), Ok(Card::N4));
+        assert_eq!(Card::try_from('3'), Ok(Card::N3));
+        assert_eq!(Card::try_from('2'), Ok(Card::N2));
+        assert_eq!(
+            Card::try_from('?'),
+            Err(CardParseError::UnexpectedChar('?'))
+        );
+    }
+
+    #[test]
+    #[ignore] // ignore this test as it requires files not checked in
+    fn test_parse_strings() {
+        let file = std::fs::File::open("data/test_input.txt").unwrap();
+        let buf_reader = std::io::BufReader::new(file);
+        use std::io::BufRead;
+        let out = parse_strings(buf_reader.lines());
+        let reference = vec![
+            (Hand::try_from("32T3K").unwrap(), 765),
+            (Hand::try_from("T55J5").unwrap(), 684),
+            (Hand::try_from("KK677").unwrap(), 28),
+            (Hand::try_from("KTJJT").unwrap(), 220),
+            (Hand::try_from("QQQJA").unwrap(), 483),
+        ];
+        assert_eq!(out, reference);
+    }
+
     #[test]
     fn test_parse_hand() {
         assert_eq!(
@@ -255,6 +299,8 @@ mod test {
                 cards: [Card::N3, Card::N3, Card::N3, Card::N3, Card::N2]
             })
         );
+        assert_eq!(Hand::try_from("333333"), Err(HandParseError::TooLong));
+        assert_eq!(Hand::try_from("333"), Err(HandParseError::TooShort));
         // 2AAAA
     }
 
