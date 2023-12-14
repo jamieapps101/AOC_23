@@ -23,7 +23,7 @@ impl Sequence {
             self.values.push(diff_vec);
         }
     }
-
+    #[allow(dead_code)]
     fn extrapolate(&mut self) -> i32 {
         for i in 0..self.values.len() {
             let i_rev = self.values.len() - 1 - i;
@@ -38,6 +38,21 @@ impl Sequence {
         }
         *self.values[0].last().unwrap()
     }
+
+    fn back_extrapolate(&mut self) -> i32 {
+        for i in 0..self.values.len() {
+            let i_rev = self.values.len() - 1 - i;
+            if i_rev == self.values.len() - 1 {
+                let prev_val = *self.values[i_rev].first().unwrap();
+                self.values[i_rev].insert(0, prev_val);
+            } else {
+                let prev_val =
+                    *self.values[i_rev].first().unwrap() - *self.values[i_rev + 1].first().unwrap();
+                self.values[i_rev].insert(0, prev_val);
+            }
+        }
+        *self.values[0].first().unwrap()
+    }
 }
 
 fn main() {
@@ -49,7 +64,7 @@ fn main() {
             let input = s.split_whitespace().map(|s| s.parse::<i32>().unwrap());
             let mut sequence = Sequence::from(input);
             sequence.analyse();
-            sequence.extrapolate()
+            sequence.back_extrapolate()
         })
         .sum();
     println!("res: {res}");
